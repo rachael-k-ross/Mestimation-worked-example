@@ -68,10 +68,10 @@ PROC IML;                            /*All steps are completed in PROC IML*/
 	q = 3;								/*Save number parameters to be estimated*/
 
 	START efunc(beta) global(ptb, anemia, bp);							/*Start to define estimating function */ 
-		p = 1 / (1 + exp(-(beta[1] + beta[2]*anemia + beta[3]*bp)));	
-		ef_1 = ptb - p;
-		ef_2 = (ptb - p)#anemia;
-		ef_3 = (ptb - p)#bp;
+		p = 1 / (1 + exp(-(beta[1] + beta[2]*anemia + beta[3]*bp)));	/*Predicted probability of the outcome */ 
+		ef_1 = ptb - p;                                                 /*Estimating function for beta_0 (intercept) */ 
+		ef_2 = (ptb - p)#anemia;                                        /*Estimating function for beta_1 */ 
+		ef_3 = (ptb - p)#bp;                                            /*Estimating function for beta_2 */ 
 		ef_mat = ef_1||ef_2||ef_3;
 		RETURN(ef_mat);                         						/*Return n by q matrix for estimating functions*/
 	FINISH efunc;                       								/*End definition of estimating equation*/
@@ -84,6 +84,14 @@ PROC IML;                            /*All steps are completed in PROC IML*/
 	/***********************************************
 	Root-finding */
 	initial = {-2,0,0};                 * Initial parameter values;
+			/*Starting values need to be provided. A good starting value is within the plausible range 
+			and not close to the bounds. For example, if the parameter is a risk then a starting value of 
+			0.5 would be a good choice. For regression, one can generally provide starting values of 0. 
+			To increase computational efficiency of M-estimation, subsets of estimating equations can be 
+			solved separately and then used as the starting values for the overall estimating equations. 
+			For example, in Example 2, we can obtain the point estimates for propensity score model parameters 
+			using built-in functions/procedures for logistic regression use those as starting values.*/
+
 	optn = q || 1;                      * Set options for nlplm, (3 - requests 3 roots,1 - printing summary output);
 	tc = j(1, 12, .);                   * Create vector for Termination Criteria options, set all to default using .;
 	tc[6] = 1e-9;                       * Replace 6th option in tc to change default tolerance;
@@ -175,16 +183,16 @@ PROC IML;
 	q = 5;								
 
 	START efunc(theta) global(ptb, anemia, bp, n);							
-		pscore = 1 / (1 + exp(-(theta[1] + theta[2]*bp)));	
-		ef_1 = anemia - pscore;
-		ef_2 = (anemia - pscore)#bp;
+		pscore = 1 / (1 + exp(-(theta[1] + theta[2]*bp)));	 /*Predicted propensity score */ 
+		ef_1 = anemia - pscore;								 /*Estimating function for alpha_0 */ 
+		ef_2 = (anemia - pscore)#bp;						 /*Estimating function for alpha_1 */
 
-		wt = anemia/pscore + (1-anemia)/(1-pscore);
-		ef_r0 = (1-anemia)#wt#ptb - theta[3];
-		ef_r1 = anemia#wt#ptb - theta[4];
+		wt = anemia/pscore + (1-anemia)/(1-pscore);   		 /*IPW */
+		ef_r0 = (1-anemia)#wt#ptb - theta[3]; 				 /*Estimating function for mu_0 */
+		ef_r1 = anemia#wt#ptb - theta[4];					 /*Estimating function for mu_1 */
 
 
-		ef_rd = j(n,1,(theta[4] - theta[3]) - theta[5]);
+		ef_rd = j(n,1,(theta[4] - theta[3]) - theta[5]);	 /*Estimating function for delta */
 
 		ef_mat = ef_1||ef_2||ef_r0||ef_r1||ef_rd;
 		RETURN(ef_mat);                         						
@@ -268,15 +276,15 @@ PROC IML;
 	q = 6;								
 
 	START efunc(theta) global(ptb, anemia, bp, n);							
-		p = 1 / (1 + exp(-(theta[1] + theta[2]*anemia + theta[3]*bp)));	
-		ef_1 = ptb - p;
-		ef_2 = (ptb - p)#anemia;
-		ef_3 = (ptb - p)#bp;
+		p = 1 / (1 + exp(-(theta[1] + theta[2]*anemia + theta[3]*bp)));			/*Predicted probability of outcome */
+		ef_1 = ptb - p;															/*Estimating function for beta_0 */
+		ef_2 = (ptb - p)#anemia;												/*Estimating function for beta_1 */
+		ef_3 = (ptb - p)#bp;													/*Estimating function for beta_2 */
 
-		ef_r0 = 1 / (1 + exp(-(theta[1] + theta[2]*0 + theta[3]*bp))) - theta[4];
-		ef_r1 = 1 / (1 + exp(-(theta[1] + theta[2]*1 + theta[3]*bp))) - theta[5];
+		ef_r0 = 1 / (1 + exp(-(theta[1] + theta[2]*0 + theta[3]*bp))) - theta[4];	/*Estimating function for mu_0 */
+		ef_r1 = 1 / (1 + exp(-(theta[1] + theta[2]*1 + theta[3]*bp))) - theta[5];	/*Estimating function for mu_1 */
 		
-		ef_rd = j(n,1,(theta[5] - theta[4]) - theta[6]);
+		ef_rd = j(n,1,(theta[5] - theta[4]) - theta[6]);						/*Estimating function for delta */
 
 		ef_mat = ef_1||ef_2||ef_3||ef_r0||ef_r1||ef_rd;
 		RETURN(ef_mat);                         						
@@ -386,10 +394,10 @@ PROC IML;
 	q = 4;								
 
 	START efunc(theta) global(r, y, w, n);							
-		ef_1 = r#(w - theta[1]);
-		ef_2 = (1 - r)#y#(w - theta[2]);
-		ef_3 = (1 - r)#(1 - y)#((1 - w) - theta[3]);
-		ef_4 = j(n,1,theta[4]*(theta[2] - (1 - theta[3])) - (theta[1] - (1 - theta[3])));
+		ef_1 = r#(w - theta[1]);							/*Estimating function for misclassified prevalence */
+		ef_2 = (1 - r)#y#(w - theta[2]);					/*Estimating function for sensitivity */
+		ef_3 = (1 - r)#(1 - y)#((1 - w) - theta[3]);		/*Estimating function for specificity */
+		ef_4 = j(n,1,theta[4]*(theta[2] - (1 - theta[3])) - (theta[1] - (1 - theta[3])));	/*Estimating function for prevalence (Rogan Gladen equation) */
 		ef_mat = ef_1||ef_2||ef_3||ef_4;
 		RETURN(ef_mat);                         						
 	FINISH efunc;       

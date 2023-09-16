@@ -1,7 +1,7 @@
 ###################################################################################################################
 # M-estimation: introduction and applied examples
 # 
-# Rachael Ross (2023/06/08)
+# Rachael Ross (2023/09/15)
 ###################################################################################################################
 
 ############################################
@@ -45,10 +45,10 @@ print(round(ests_mle,3))
 # Defining estimating equation
 
 estimating_function <- function(beta){
-  p <- plogis(beta[1] + beta[2]*dat$anemia + beta[3]*dat$bp)
-  ef_1 <- (dat$ptb - p)*1
-  ef_2 <- (dat$ptb - p)*dat$anemia
-  ef_3 <- (dat$ptb - p)*dat$bp
+  p <- plogis(beta[1] + beta[2]*dat$anemia + beta[3]*dat$bp)  # Predicted probability of the outcome
+  ef_1 <- (dat$ptb - p)*1                                     # Estimating function for beta_0 (intercept)
+  ef_2 <- (dat$ptb - p)*dat$anemia                            # Estimating function for beta_1
+  ef_3 <- (dat$ptb - p)*dat$bp                                # Estimating function for beta_2
   return(cbind(ef_1, ef_2, ef_3)) 
 }
 
@@ -63,6 +63,15 @@ estimating_equation <- function(beta){
 
 proc <- rootSolve::multiroot(f = estimating_equation,     # Function to find root(s) of
                              start = c(-2,0,0))           # Starting values for root-finding procedure
+
+# Starting values need to be provided. A good starting value is within the plausible 
+# range and not close to the bounds. For example, if the parameter is a risk then a 
+# starting value of 0.5 would be a good choice. For regression, one can generally 
+# provide starting values of 0. To increase computational efficiency of M-estimation, 
+# subsets of estimating equations can be solved separately and then used as the starting 
+# values for the overall estimating equations. For example, in Example 2, we can obtain 
+# the point estimates for propensity score model parameters using built-in 
+# functions/procedures for logistic regression use those as starting values.
 
 beta_root <- proc$root
 
@@ -104,10 +113,10 @@ geex_ef <- function(data){               # Function of estimating functions (to 
   anemia <- data$anemia
   bp <- data$bp
   function(theta){
-    p <- plogis(theta[1] + theta[2]*anemia + theta[3]*bp)
-    c((ptb - p)*1,
-      (ptb - p)*anemia,
-      (ptb - p)*bp)
+    p <- plogis(theta[1] + theta[2]*anemia + theta[3]*bp)   # Predicted probability of the outcome
+    c((ptb - p)*1,                                          # Estimating function for beta_0 (intercept)
+      (ptb - p)*anemia,                                     # Estimating function for beta_1
+      (ptb - p)*bp)                                         # Estimating function for beta_2
   }
 }
 
@@ -148,25 +157,25 @@ print(round(ests_geex,3))
 ################################################
 # Using geex 
 
-geex_ef2 <- function(data){               
+geex_ef2 <- function(data){             # Function of estimating functions (to be used in geex::m_estimate)  
   ptb <- data$ptb
   anemia <- data$anemia
   bp <- data$bp
   
   function(theta){
-    alpha <- theta[1:2]
-    mu <- theta[3:4]
-    delta <- theta[5:6]
+    alpha <- theta[1:2]                            # Parameters for propensity score model
+    mu <- theta[3:4]                               # Risks
+    delta <- theta[5]                              # Risk difference
     
-    pscore <- plogis(alpha[1] + alpha[2]*bp)
-    ef_1 <- (anemia - pscore)
-    ef_2 <- (anemia - pscore)*bp
+    pscore <- plogis(alpha[1] + alpha[2]*bp)       # Predicted propensity score
+    ef_1 <- (anemia - pscore)                      # Estimating function for alpha_0
+    ef_2 <- (anemia - pscore)*bp                   # Estimating function for alpha_1
     
-    wt <- anemia/pscore + (1-anemia)/(1-pscore)
-    ef_r0 <- (1 - anemia)*wt*ptb - mu[1]
-    ef_r1 <- anemia*wt*ptb - mu[2]
+    wt <- anemia/pscore + (1-anemia)/(1-pscore)    # IPW
+    ef_r0 <- (1 - anemia)*wt*ptb - mu[1]           # Estimating function for mu_0
+    ef_r1 <- anemia*wt*ptb - mu[2]                 # Estimating function for mu_1
 
-    ef_rd <- mu[2] - mu[1] - delta[1]
+    ef_rd <- mu[2] - mu[1] - delta[1]              # Estimating function for delta
     return(c(ef_1,ef_2,ef_r0,ef_r1,ef_rd))
   }
 }
@@ -195,26 +204,26 @@ print(round(ests_2,2))
 ################################################
 # Using geex 
 
-geex_ef3 <- function(data){               
+geex_ef3 <- function(data){                       # Function of estimating functions (to be used in geex::m_estimate)            
   ptb <- data$ptb
   anemia <- data$anemia
   bp <- data$bp
   
   function(theta){
-    beta <- theta[1:3]
-    mu <- theta[4:5]
-    delta <- theta[6:7]
+    beta <- theta[1:3]                                # Parameters of outcome model
+    mu <- theta[4:5]                                  # Risks
+    delta <- theta[6]                                 # Risk difference
     
-    p <- plogis(beta[1] + beta[2]*anemia + beta[3]*bp)
+    p <- plogis(beta[1] + beta[2]*anemia + beta[3]*bp)  # Predicted probability of the outcome
     
-    ef_1 <- (ptb - p)
-    ef_2 <- (ptb - p)*anemia
-    ef_3 <- (ptb - p)*bp
+    ef_1 <- (ptb - p)                                 # Estimating function for beta_0  
+    ef_2 <- (ptb - p)*anemia                          # Estimating function for beta_1
+    ef_3 <- (ptb - p)*bp                              # Estimating function for beta_2 
     
-    ef_r0 <- plogis(beta[1] + beta[2]*0 + beta[3]*bp) - mu[1]
-    ef_r1 <- plogis(beta[1] + beta[2]*1 + beta[3]*bp) - mu[2]
+    ef_r0 <- plogis(beta[1] + beta[2]*0 + beta[3]*bp) - mu[1]  # Estimating function for mu_0
+    ef_r1 <- plogis(beta[1] + beta[2]*1 + beta[3]*bp) - mu[2]  # Estimating function for mu_1
     
-    ef_rd <- mu[2] - mu[1] - delta[1]
+    ef_rd <- mu[2] - mu[1] - delta[1]                 # Estimating function for delta
     return(c(ef_1,ef_2,ef_3,ef_r0,ef_r1,ef_rd))
   }
 }
@@ -254,16 +263,16 @@ datfusion <- tibble(r=c(rep(1,950),rep(0,331)),
 ################################################
 # Using geex 
 
-geex_ef4 <- function(data){               
+geex_ef4 <- function(data){                       # Function of estimating functions (to be used in geex::m_estimate)               
   r <- data$r
   y <- data$y
   w <- data$w
   
   function(theta){
-    ef_1 <- r*(w - theta[1])
-    ef_2 <- (1 - r)*y*(w - theta[2])
-    ef_3 <- (1 - r)*(1 - y)*((1 - w) - theta[3])
-    ef_4 <- theta[4]*(theta[2] - (1 - theta[3])) - (theta[1] - (1 - theta[3]))
+    ef_1 <- r*(w - theta[1])                      # Estimating function for misclassified prevalence
+    ef_2 <- (1 - r)*y*(w - theta[2])              # Estimating function for sensitivity
+    ef_3 <- (1 - r)*(1 - y)*((1 - w) - theta[3])  # Estimating function for specificity
+    ef_4 <- theta[4]*(theta[2] - (1 - theta[3])) - (theta[1] - (1 - theta[3]))  # Estimating function for prevalence (Rogan Gladen)
 
     return(c(ef_1,ef_2,ef_3,ef_4))
   }
