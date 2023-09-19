@@ -31,15 +31,17 @@ n <- nrow(dat)     # Number of observations
 
 reg_mle <- glm(ptb ~ anemia + bp, data=dat, family="binomial")   
 
-ests_mle <-as.data.frame(cbind("beta"=reg_mle$coefficients,
+ests_mle <-as.data.frame(cbind("beta"=reg_mle$coefficients,         # Formatting results to display in table
                                "se"=sqrt(diag(vcov(reg_mle))))) %>%
-  mutate(lcl = beta - 1.96*se,
+  mutate(lcl = beta - 1.96*se,                                      # Construct confidence intervals
          ucl = beta + 1.95*se)
-intlist <- row.names(ests_mle)
+intlist <- row.names(ests_mle)                                      # Label rows of table
 
-print("Estimated logistic regression")
-print("MLE")
-print(round(ests_mle,3))
+print("Estimated logistic regression") 
+print("MLE")                                             # Display results
+print(round(ests_mle,3))           
+
+                        
 
 ############################################
 # Defining estimating equation
@@ -93,17 +95,18 @@ filling <- outerprod/n
 # Assembling the sandwich (matrix algebra)
 
 sandwich <- solve(bread) %*% filling %*% t(solve(bread))
-se <- sqrt(diag(sandwich / n))
+se <- sqrt(diag(sandwich / n))                            # Extract diagonal and take sqrt to get se
 
-ests_mest <-as.data.frame(cbind("beta"=beta_root,
+ests_mest <-as.data.frame(cbind("beta"=beta_root,         # Formatting results to display in table
                                 "se"=se)) %>%
-  mutate(lcl = beta - 1.96*se,
+  mutate(lcl = beta - 1.96*se,                            # Construct confidence intervals
          ucl = beta + 1.96*se)
 
-row.names(ests_mest) <- intlist
+row.names(ests_mest) <- intlist                           # Label rows of table
             
-print("M-Estimation, by hand")
+print("M-Estimation, by hand")                            # Display results
 print(round(ests_mest,3))
+
 
 ####################################################################################################################
 # Using geex 
@@ -120,21 +123,22 @@ geex_ef <- function(data){               # Function of estimating functions (to 
   }
 }
 
+# Compute M-estimator using geex package  
 mestr <- geex::m_estimate(estFUN = geex_ef,                                       # Function of estimating functions
                           data = dat,                                             # Data to be used (must be data frame)
                           root_control = setup_root_control(start = c(-2,0,0)))   # Set starting values
 
-beta_geex <- roots(mestr)             # Extract roots
+beta_geex <- roots(mestr)             # Extract point estimates from geex
 se_geex <- sqrt(diag(vcov(mestr)))    # Extract finite sample variance and take sqrt to get se
 
-ests_geex <-as.data.frame(cbind("beta"=beta_geex,
+ests_geex <-as.data.frame(cbind("beta"=beta_geex,   # Formatting results to display in table
                                 "se"=se_geex)) %>%
-  mutate(lcl = beta - 1.96*se,
+  mutate(lcl = beta - 1.96*se,                      # Construct confidence intervals
          ucl = beta + 1.96*se)
 
-row.names(ests_geex) <- intlist
+row.names(ests_geex) <- intlist                     # Label rows of table
 
-print("M-Estimation, by geex")
+print("M-Estimation, by geex")                      # Display results
 print(round(ests_geex,3))
 
 ############################################
@@ -180,21 +184,21 @@ geex_ef2 <- function(data){             # Function of estimating functions (to b
   }
 }
 
-mest_2 <- geex::m_estimate(estFUN = geex_ef2,                                       
+mest_2 <- geex::m_estimate(estFUN = geex_ef2,   # Compute M-estimator using geex package                                      
                             data = dat,                                             
                             root_control = setup_root_control(start = c(-2,0,.1,.1,0)))   
 
-theta2 <- roots(mest_2)             
-se2 <- sqrt(diag(vcov(mest_2)))    
+theta2 <- roots(mest_2)                         # Extract point estimates from geex              
+se2 <- sqrt(diag(vcov(mest_2)))                 # Extract finite sample variance and take sqrt to get se 
 
-ests_2 <-as.data.frame(cbind("beta"=theta2,
+ests_2 <-as.data.frame(cbind("beta"=theta2,     # Formatting results to display in table
                               "se"=se2)) %>%
-  mutate(lcl = beta - 1.96*se,
+  mutate(lcl = beta - 1.96*se,                  # Construct confidence intervals
          ucl = beta + 1.96*se)
 
-row.names(ests_2) <- c(intlist[1],intlist[3],"risk0","risk1","rd")
+row.names(ests_2) <- c(intlist[1],intlist[3],"risk0","risk1","rd") # Label rows of table
 
-print("IPW by M-Estimation, using geex")
+print("IPW by M-Estimation, using geex")        # Display results
 print(round(ests_2,2))
 
 
@@ -228,26 +232,26 @@ geex_ef3 <- function(data){                       # Function of estimating funct
   }
 }
 
-mest_3 <- geex::m_estimate(estFUN = geex_ef3,                                       
+mest_3 <- geex::m_estimate(estFUN = geex_ef3,       # Compute M-estimator using geex package                                  
                             data = dat,                                             
                             root_control = setup_root_control(start = c(-2,0,0,.1,.1,0)))   
 
-theta3 <- roots(mest_3)             
-se3 <- sqrt(diag(vcov(mest_3)))    
+theta3 <- roots(mest_3)                             # Extract point estimates from geex                 
+se3 <- sqrt(diag(vcov(mest_3)))                     # Extract finite sample variance and take sqrt to get se
 
-ests_3 <-as.data.frame(cbind("beta"=theta3,
+ests_3 <-as.data.frame(cbind("beta"=theta3,         # Formatting results to display in table
                               "se"=se3)) %>%
-  mutate(lcl = beta - 1.96*se,
+  mutate(lcl = beta - 1.96*se,                      # Construct confidence intervals
          ucl = beta + 1.96*se)
 
-row.names(ests_3) <- c(intlist,"risk0","risk1","rd")
+row.names(ests_3) <- c(intlist,"risk0","risk1","rd")  # Label rows of table
 
-print("G-computation by M-Estimation, using geex")
+print("G-computation by M-Estimation, using geex")   # Display results
 print(round(ests_3,3))
 
 
 ############################################
-# EXAMPLE 4: DATA FUSION
+# EXAMPLE 4: OUTCOME MISCLASSIFICATION
 
 ############################################
 # Data 
@@ -278,20 +282,20 @@ geex_ef4 <- function(data){                       # Function of estimating funct
   }
 }
 
-mest_4 <- geex::m_estimate(estFUN = geex_ef4,                                       
+mest_4 <- geex::m_estimate(estFUN = geex_ef4,        # Compute M-estimator using geex package                               
                            data = datfusion,                                             
                            root_control = setup_root_control(start = c(.7,1,1,0.7)))   
 
-theta4 <- roots(mest_4)             
-se4 <- sqrt(diag(vcov(mest_4)))    
+theta4 <- roots(mest_4)                              # Extract point estimates from geex  
+se4 <- sqrt(diag(vcov(mest_4)))                      # Extract finite sample variance and take sqrt to get se
 
-ests_4 <-as.data.frame(cbind("beta"=theta4,
+ests_4 <-as.data.frame(cbind("beta"=theta4,          # Formatting results to display in table
                               "se"=se4)) %>%
-  mutate(lcl = beta - 1.96*se,
+  mutate(lcl = beta - 1.96*se,                       # Construct confidence intervals
          ucl = beta + 1.96*se)
 
-row.names(ests_4) <- c("pr_w","se","sp","pr_y")
+row.names(ests_4) <- c("pr_w","se","sp","pr_y")      # Label rows of table
 
-print("ME correction, using geex")
+print("ME correction, using geex")                   # Display results
 print(round(ests_4,3))
-      
+
